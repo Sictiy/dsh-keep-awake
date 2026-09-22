@@ -72,7 +72,7 @@ The routes live inside Harness `connection.fetch` under `/api`, so browser token
 
 ```sh
 # Inside the profile directory (e.g. ~/.dsh/profiles/web)
-pnpm add "dsh-keep-awake@<source>"   # npm / github:bearice/dsh-keep-awake / link:<local path>
+pnpm add "dsh-keep-awake@<source>"   # npm / github:Sictiy/dsh-keep-awake#fix/reliable-keep-awake / link:<local path>
 # and add "dsh-keep-awake" to dsh.profile.bundles in package.json
 pnpm install
 # restart the profile
