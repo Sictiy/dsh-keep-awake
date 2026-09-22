@@ -6,7 +6,7 @@
 
 Blocks OS sleep while any agent / subagent / background job runs · auto-release after a configurable grace period once idle · manual hold · optional display-on · Windows / macOS / Linux · persisted settings · multilingual web settings page
 
-[![version](https://img.shields.io/badge/version-0.2.0-4176E6)](https://github.com/bearice/dsh-keep-awake)
+[![version](https://img.shields.io/badge/version-0.2.1-4176E6)](https://github.com/Sictiy/dsh-keep-awake)
 [![license](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![dsh](https://img.shields.io/badge/DeepSeek%20Harness-dsh--plugin-4176E6)](https://github.com/deepseek-ai/deepseek-harness)
 
@@ -33,12 +33,12 @@ Blocks OS sleep while any agent / subagent / background job runs · auto-release
 
 ## How it works
 
-Polls every 5 seconds, with instant re-scan on events (`agent/status`, `subagent/start|end`, job set changes):
+Polls every 5 seconds, with instant re-scan on events (`agent/status`, `subagent/start|end`, and current `JobEvents` lifecycle events):
 
 - **Running agents**: agents with `status === 'running'` in `agents.list()` (covers the main agent, subagents, and workflow children)
-- **Background jobs**: `running`/`stopping` jobs in `jobs.list()` / `jobs.list(agent)` (covers `run_in_background` commands and background subagent tasks)
+- **Background jobs**: `running`/`stopping` jobs in `jobs.list()` + `jobs.list(agent.id)` (with a legacy Jobs API fallback; covers `run_in_background` commands and background subagent tasks)
 
-When activity is detected, a platform helper process is started via the `subprocess` service (tree-level termination — the sleep flags release as soon as the process exits):
+When activity is detected, a platform helper process is started as a Node child process (tree-level termination — the sleep flags release as soon as the process exits):
 
 | Platform | Mechanism |
 |---|---|
@@ -61,16 +61,18 @@ Persisted in the profile's `settings.yaml` (namespace `keep-awake`):
 
 The UI uses the framework `locale` service (namespace `keep-awake`, zh/en dictionaries): when no language is explicitly set, the browser/system language is used; switching in DSH's language settings takes effect instantly (both the settings page body and the sidebar label follow).
 
-## HTTP routes (loopback)
+## HTTP routes (Harness-authenticated)
 
-- `GET /dsh-keep-awake/state` — current state (activity counts, helper process, config)
-- `PUT /dsh-keep-awake/config` — update config, body `{ "section": {...} }`
+The routes live inside Harness `connection.fetch` under `/api`, so browser token/Cookie authentication and trusted-host checks are reused. This supports trusted reverse proxies such as Tailscale Serve.
+
+- `GET /api/dsh-keep-awake/state` — current state (activity counts, probe health, helper process, config)
+- `PUT /api/dsh-keep-awake/config` — update config, body `{ "section": {...} }`
 
 ## Install
 
 ```sh
 # Inside the profile directory (e.g. ~/.dsh/profiles/web)
-pnpm add "dsh-keep-awake@<source>"   # npm / github:bearice/dsh-keep-awake / link:<local path>
+pnpm add "dsh-keep-awake@<source>"   # npm / github:Sictiy/dsh-keep-awake#fix/reliable-keep-awake / link:<local path>
 # and add "dsh-keep-awake" to dsh.profile.bundles in package.json
 pnpm install
 # restart the profile
@@ -78,5 +80,16 @@ pnpm install
 
 ## Development
 
-- For local development, mount the package into the profile via `link:` (see Install above) and use `node --check lib/*.js` for syntax checks
+- For local development, mount the package into the profile via `link:` (see Install above)
+- `npm run check`: syntax checks; `npm test`: core regression tests
 - Layout: `lib/index.js` (Host), `lib/client.js` (web settings page), `cordis.patch.yml` (mount line)
+
+
+## Reliability fixes (0.2.1)
+
+- Explicit `agents` / `jobs` dependencies remove load-order assumptions.
+- Config updates merge patches instead of resetting unrelated settings.
+- Current Harness `JobEvents` / `jobs.list(sessionId)` support with a legacy Jobs API fallback.
+- Activity-probe failures are fail-closed: uncertainty keeps the machine awake instead of looking idle.
+- The Windows helper checks the `SetThreadExecutionState` result and reports READY only after the wake lock is actually acquired.
+- Unexpected helper exits are retried with bounded exponential backoff; changing display-sleep policy while active rebuilds the lock immediately.
