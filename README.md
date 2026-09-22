@@ -72,7 +72,7 @@
 
 ```sh
 # 在 profile 目录内（如 ~/.dsh/profiles/web）
-pnpm add "dsh-keep-awake@<来源>"   # npm / github:bearice/dsh-keep-awake / link:<本地路径>
+pnpm add "dsh-keep-awake@<来源>"   # npm / github:Sictiy/dsh-keep-awake#fix/reliable-keep-awake / link:<本地路径>
 # 并把 "dsh-keep-awake" 加入 package.json 的 dsh.profile.bundles
 pnpm install
 # 重启 profile
